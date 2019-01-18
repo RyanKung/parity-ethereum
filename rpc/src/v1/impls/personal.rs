@@ -21,7 +21,7 @@ use std::time::Duration;
 use bytes::{Bytes, ToPretty};
 use ethcore::account_provider::AccountProvider;
 use types::transaction::PendingTransaction;
-use ethereum_types::{H520, U128, Address};
+use ethereum_types::{H160, H256, H520, U128, Address};
 use ethkey::{public_to_address, recover, Signature};
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -30,7 +30,6 @@ use v1::helpers::{errors, eip191};
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
 use v1::traits::Personal;
 use v1::types::{
-	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
 	Bytes as RpcBytes,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse as RpcConfirmationResponse,
@@ -99,18 +98,18 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
-	fn accounts(&self) -> Result<Vec<RpcH160>> {
+	fn accounts(&self) -> Result<Vec<H160>> {
 		let accounts = self.accounts.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
-		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		Ok(accounts.into_iter().map(Into::into).collect::<Vec<H160>>())
 	}
 
-	fn new_account(&self, pass: String) -> Result<RpcH160> {
+	fn new_account(&self, pass: String) -> Result<H160> {
 		self.accounts.new_account(&pass.into())
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool> {
+	fn unlock_account(&self, account: H160, account_pass: String, duration: Option<U128>) -> Result<bool> {
 		let account: Address = account.into();
 		let store = self.accounts.clone();
 		let duration = match duration {
@@ -142,7 +141,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
-	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign(&self, data: RpcBytes, account: H160, password: String) -> BoxFuture<H520> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
@@ -160,7 +159,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				 }))
 	}
 
-	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign_191(&self, version: EIP191Version, data: Value, account: H160, password: String) -> BoxFuture<H520> {
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "191"));
 
 		let data = try_bf!(eip191::hash_message(version, data));
@@ -182,7 +181,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		)
 	}
 
-	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+	fn sign_typed_data(&self, typed_data: EIP712, account: H160, password: String) -> BoxFuture<H520> {
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "712"));
 
 		let data = match hash_structured_data(typed_data) {
@@ -207,7 +206,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		)
 	}
 
-	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
+	fn ec_recover(&self, data: RpcBytes, signature: H520) -> BoxFuture<H160> {
 		let signature: H520 = signature.into();
 		let signature = Signature::from_electrum(&signature);
 		let data: Bytes = data.into();
@@ -227,7 +226,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
 	}
 
-	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
+	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<H256> {
 		Box::new(self.do_sign_transaction(meta, request, password)
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
@@ -239,7 +238,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		)
 	}
 
-	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
+	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<H256> {
 		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
 		self.send_transaction(meta, request, password)
 	}
